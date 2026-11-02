@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>期权扭蛋 · Options Gacha</title>
+<style>
+  :root{
+    --bg:#0d1626; --panel:#16243a; --panel2:#1c2f4a; --line:#344a68;
+    --txt:#eef3f8; --sub:#9db0c4; --blue:#4da3ff; --gold:#e8a33d;
+    --red:#ff6b5e; --green:#39c08a; --purple:#be8cff;
+    --n:#8fa3b8; --r:#4da3ff; --sr:#be8cff; --ssr:#e8a33d; --ur:#ff5e7a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--txt); font-family:"PingFang SC","Microsoft YaHei",sans-serif; min-height:100vh;}
+  header{padding:22px 16px 6px; text-align:center;}
+  header h1{font-size:30px; letter-spacing:2px;}
+  header h1 .gacha{color:var(--gold);}
+  header p{color:var(--sub); font-size:13px; margin-top:6px;}
+  nav{display:flex; gap:8px; justify-content:center; padding:14px 10px 4px; flex-wrap:wrap;}
+  nav button{background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:20px; padding:8px 20px; font-size:15px; cursor:pointer;}
+  nav button.active{background:var(--blue); border-color:var(--blue); color:#fff;}
+  main{max-width:900px; margin:0 auto; padding:16px;}
+  .view{display:none;} .view.active{display:block;}
+  .packinfo{text-align:center; color:var(--sub); font-size:14px; margin:8px 0 14px;}
+  .packinfo b{color:var(--gold); font-size:17px;}
+  .packstage{display:flex; justify-content:center; margin:10px 0 6px;}
+  .pack{width:210px; height:290px; border-radius:16px; cursor:pointer; position:relative;
+    background:linear-gradient(160deg,#233a5e,#101c30 60%); border:2px solid var(--gold);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    transition:transform .15s; user-select:none;}
+  .pack:hover{transform:scale(1.03);}
+  .pack .ball{font-size:64px;}
+  .pack .pt{font-size:20px; font-weight:700; letter-spacing:3px;}
+  .pack .ps{color:var(--sub); font-size:12px;}
+  .pack.disabled{opacity:.35; pointer-events:none;}
+  .drawrow{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:18px; min-height:10px;}
+  .card{width:170px; border-radius:12px; padding:12px; background:var(--panel); border:2px solid var(--line); position:relative; animation:flip .45s ease;}
+  @keyframes flip{from{transform:rotateY(90deg); opacity:0;} to{transform:rotateY(0); opacity:1;}}
+  .card .rar{font-size:11px; font-weight:700; padding:2px 8px; border-radius:8px; display:inline-block; color:#0d1626;}
+  .card .nm{font-size:17px; font-weight:700; margin:8px 0 2px;}
+  .card .en{font-size:11px; color:var(--sub);}
+  .card .hook{font-size:12.5px; color:var(--txt); margin-top:8px; line-height:1.5; min-height:38px;}
+  .card .pw{font-size:12px; color:var(--gold); margin-top:6px;}
+  .card .cnt{position:absolute; top:10px; right:10px; font-size:11px; color:var(--sub);}
+  .card.N{border-color:var(--n);} .card.R{border-color:var(--r);} .card.SR{border-color:var(--sr);}
+  .card.SSR{border-color:var(--ssr); box-shadow:0 0 14px rgba(232,163,61,.35);}
+  .card.UR{border-color:var(--ur); box-shadow:0 0 18px rgba(255,94,122,.5);}
+  .rar.N{background:var(--n);} .rar.R{background:var(--r);} .rar.SR{background:var(--sr);} .rar.SSR{background:var(--ssr);} .rar.UR{background:var(--ur); color:#fff;}
+  .dexhead{display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px; flex-wrap:wrap; gap:8px;}
+  .dexhead h3{font-size:17px;}
+  .dexhead .prog{color:var(--sub); font-size:13px;}
+  .dexgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px;}
+  .dexgrid .card{width:auto; cursor:pointer; animation:none;}
+  .dexgrid .card.locked{opacity:.38; filter:grayscale(1);}
+  .modal{position:fixed; inset:0; background:rgba(4,8,16,.75); display:none; align-items:center; justify-content:center; z-index:50; padding:16px;}
+  .modal.open{display:flex;}
+  .modalbox{background:var(--panel2); border-radius:14px; max-width:480px; width:100%; padding:22px; border:1px solid var(--line);}
+  .modalbox h2{font-size:21px; margin:10px 0 2px;}
+  .modalbox .en{color:var(--sub); font-size:12.5px;}
+  .modalbox .desc{margin-top:12px; font-size:14.5px; line-height:1.75; color:var(--txt);}
+  .modalbox .meta{margin-top:12px; font-size:12.5px; color:var(--sub); line-height:1.7;}
+  .modalbox .close{margin-top:16px; width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--txt); font-size:15px; cursor:pointer;}
+  .bigbtn{display:block; margin:14px auto 0; background:var(--gold); color:#201503; border:none; font-size:16px; font-weight:700; padding:12px 34px; border-radius:24px; cursor:pointer;}
+  .bigbtn:disabled{opacity:.4; cursor:default;}
+  select{background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:8px; padding:9px; font-size:14px; max-width:100%;}
+  .vsrow{display:flex; gap:14px; justify-content:center; align-items:stretch; flex-wrap:wrap; margin-top:16px;}
+  .vs{font-size:24px; font-weight:800; color:var(--red); align-self:center;}
+  .result{text-align:center; font-size:18px; margin-top:16px; min-height:26px;}
+  .trophy{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; font-size:14.5px;}
+  .trophy span{color:var(--sub); font-size:12.5px; display:block; margin-top:3px;}
+  .note{color:var(--sub); font-size:12.5px; text-align:center; margin-top:22px; line-height:1.7;}
+</style>
+</head>
+<body>
+<header>
+  <h1>期权<span class="gacha">扭蛋</span></h1>
+  <p>每天 10 包，抽期权知识卡 · 收集图鉴 · 重复卡变复习</p>
+</header>
+<nav>
+  <button data-v="gacha" class="active">扭蛋</button>
+  <button data-v="dex">图鉴</button>
+  <button data-v="battle">对战</button>
+  <button data-v="trophy">奖杯</button>
+</nav>
+<main>
+  <section id="v-gacha" class="view active">
+    <div class="packinfo">今日卡包：<b id="packsLeft">10</b> / 10 包 · 每包 3 张</div>
+    <div class="packstage">
+      <div class="pack" id="packBtn">
+        <div class="ball">🎴</div>
+        <div class="pt">期权卡包</div>
+        <div class="ps">OPTIONS PACK</div>
+        <div class="ps">点我开包</div>
+      </div>
+    </div>
+    <div class="drawrow" id="drawRow"></div>
+    <p class="note">稀有度：N 基础 · R 进阶 · SR 策略 · SSR 稀有概念与名人案例 · UR 传说<br>抽卡种子取自你点开的这一刻（和 Wikipedia Gacha 同款思路）</p>
+  </section>
+
+  <section id="v-dex" class="view">
+    <div class="dexhead"><h3>我的图鉴</h3><div class="prog" id="dexProg"></div></div>
+    <div id="dexWrap"></div>
+    <p class="note">点任意已收集的卡看白话讲解。重复抽到同一张卡会升级：2 张 Lv.2、4 张 Lv.3、8 张 Lv.4……抽到就是复习。</p>
+  </section>
+
+  <section id="v-battle" class="view">
+    <div style="text-align:center; margin-top:6px;">
+      <div style="color:var(--sub); font-size:13.5px; margin-bottom:8px;">选一张你已收集的卡出战，对手随机抽一张，比战斗力（带 ±10% 手气）</div>
+      <select id="myCardSel"></select>
+    </div>
+    <button class="bigbtn" id="battleBtn">开始对战</button>
+    <div class="vsrow" id="vsRow"></div>
+    <div class="result" id="battleResult"></div>
+    <p class="note">战绩记在奖杯页。输了不扣卡，放心打。</p>
+  </section>
+
+  <section id="v-trophy" class="view">
+    <div id="trophyWrap" style="margin-top:10px;"></div>
+  </section>
+</main>
+
+<div class="modal" id="modal">
+  <div class="modalbox">
+    <span class="rar" id="mRar"></span>
+    <h2 id="mName"></h2>
+    <div class="en" id="mEn"></div>
+    <div class="desc" id="mDesc"></div>
+    <div class="meta" id="mMeta"></div>
+    <button class="close" id="mClose">关闭</button>
+  </div>
+</div>
+
+<script>
+const CARDS = [
+{s:"calls-and-puts",n:"期权是什么",e:"Option · Call & Put",r:"N",c:"基础概念",h:"期权买的不是股票，是按约定价买卖的权利；Call 偏看涨，Put 偏看跌或防守。"},
+{s:"option-premium",n:"权利金",e:"Premium",r:"N",c:"基础概念",h:"买方为权利付的钱、卖方收的钱；报价是每股价，实际金额要乘 100。"},
+{s:"intrinsic-time-value",n:"内在价值与时间价值",e:"Intrinsic & Time Value",r:"N",c:"基础概念",h:"期权价格 = 内在价值 + 时间价值；虚值期权只有时间价值，越临近到期掉得越快。"},
+{s:"moneyness",n:"实值 · 平值 · 虚值",e:"ITM / ATM / OTM",r:"N",c:"基础概念",h:"行权价和现价的关系：实值有内在价值，平值在现价附近，虚值全靠时间和波动。"},
+{s:"option-strike-price",n:"行权价",e:"Strike Price",r:"N",c:"基础概念",h:"未来约定的买卖价格，决定整张合约的盈亏结构；别只挑最便宜的虚值合约。"},
+{s:"option-expiration-date",n:"到期日",e:"Expiration Date",r:"N",c:"基础概念",h:"权利失效的那一天；周权和月权之别，本质是时间价值衰减速度之别。"},
+{s:"option-chain",n:"期权链",e:"Option Chain",r:"N",c:"基础概念",h:"同一标的全部合约的报价表：到期日、行权价、买卖价差、成交量、IV 一屏看全。"},
+{s:"contract-multiplier",n:"合约乘数：一张 = 100 股",e:"Contract Multiplier",r:"N",c:"基础概念",h:"美股标准期权一张对应 100 股，报价 2.50 美元实际是 250 美元。"},
+{s:"bid-ask-options",n:"买卖价差",e:"Bid-Ask Spread",r:"N",c:"基础概念",h:"买一和卖一之间的差是隐性成本；期权价差常比股票宽，新手优先用限价单。"},
+{s:"open-interest-volume",n:"成交量与未平仓量",e:"Volume & Open Interest",r:"N",c:"基础概念",h:"成交量看今天多活跃，未平仓量看存量仓位；高成交量不等于高未平仓量。"},
+{s:"exercise-assignment",n:"行权与指派",e:"Exercise & Assignment",r:"N",c:"基础概念",h:"买方行使权利叫行权，卖方被抽中履约叫指派；到期时发生什么先看这张。"},
+{s:"american-european",n:"美式与欧式期权",e:"American vs European",r:"N",c:"基础概念",h:"区别只在能否提前行权：美式随时可以，欧式只能到期日。"},
+{s:"weekly",n:"周权",e:"Weekly Options",r:"N",c:"基础概念",h:"到期更密的短期合约，看着便宜但时间衰减极快，不是便宜就能买。"},
+{s:"leaps",n:"LEAPS 长期期权",e:"LEAPS",r:"N",c:"基础概念",h:"到期一年以上的期权，常被当股票替代：时间价值厚、资金效率高。"},
+{s:"index-options",n:"指数期权",e:"Index Options",r:"N",c:"基础概念",h:"标的是指数、现金结算；别把 SPX 当成普通股票期权来用。"},
+{s:"etf",n:"ETF 期权",e:"ETF Options",r:"N",c:"基础概念",h:"SPY、QQQ 期权是全市场最活跃的品种之一，流动性强、价差窄。"},
+{s:"option-order-types",n:"期权订单类型",e:"Order Types",r:"N",c:"基础概念",h:"市价、限价、组合、止损各有用法；流动性差的合约慎用市价单。"},
+{s:"option-chain-bid",n:"Bid、Ask 与 Mid",e:"Bid / Ask / Mid",r:"N",c:"基础概念",h:"中间价只是参考价，不保证成交；看懂报价三件套才不会下错单。"},
+{s:"option-zero",n:"期权为什么会归零",e:"Worthless Expiry",r:"N",c:"基础概念",h:"归零三大原因：方向错、时间耗尽、波动率坍塌。"},
+{s:"cash-settled",n:"现金结算",e:"Cash Settlement",r:"N",c:"基础概念",h:"到期不交割股票，按现金差额结算，指数期权常用这种。"},
+{s:"physical-settlement",n:"实物交割",e:"Physical Settlement",r:"N",c:"基础概念",h:"股票期权行权后真的换成股票，账户要备好资金和持仓能力。"},
+{s:"option-margin",n:"期权保证金",e:"Margin",r:"N",c:"基础概念",h:"卖方要押保证金；规则先搞清，别等强平通知来了才懂。"},
+{s:"option-symbology",n:"期权代码怎么读",e:"Option Symbology",r:"N",c:"基础概念",h:"代码里的字母数字 = 标的 + 到期日 + 行权价 + Call/Put，读懂才不会买错。"},
+{s:"implied-volatility",n:"隐含波动率 IV",e:"Implied Volatility",r:"R",c:"希腊字母",h:"市场对未来波动的预期，期权贵不贵先看它；只看方向不看 IV 是新手通病。"},
+{s:"theta-decay",n:"Theta：时间损耗",e:"Theta Decay",r:"R",c:"希腊字母",h:"期权每天自动贬值的速度；买方付钱给时间，卖方收钱等时间。"},
+{s:"vega",n:"Vega",e:"Vega",r:"R",c:"希腊字母",h:"IV 每变 1%，期权价格变多少；财报和事件前后 Vega 风险最大。"},
+{s:"rho",n:"Rho",e:"Rho",r:"R",c:"希腊字母",h:"利率变 1%，期权价格变多少；平时不起眼，长期期权里不能忽略。"},
+{s:"historical-vol",n:"历史波动率 HV",e:"Historical Volatility",r:"R",c:"希腊字母",h:"过去一段时间股价真实波动的幅度，和 IV 对照着看贵贱。"},
+{s:"delta-gamma",n:"Delta 与 Gamma",e:"Delta & Gamma",r:"R",c:"希腊字母",h:"Delta 是方向油门，Gamma 是油门的加速度；平值和临近到期时最敏感。"},
+{s:"buying-call",n:"买入看涨期权",e:"Long Call",r:"R",c:"期权策略",h:"用有限权利金表达看涨；方向、时间和 IV 必须同时对才赚钱。"},
+{s:"buying-put",n:"买入看跌期权",e:"Long Put",r:"R",c:"期权策略",h:"既能押下跌，也能当持仓保险；市场恐慌时 Put 会明显变贵。"},
+{s:"covered-call",n:"备兑开仓",e:"Covered Call",r:"R",c:"期权策略",h:"持股 + 卖 Call 收租：用上行空间换权利金收入的经典策略。"},
+{s:"cash-secured-put",n:"现金担保卖 Put",e:"Cash-Secured Put",r:"R",c:"期权策略",h:"备好现金卖 Put：按目标价接货，被指派就拿 100 股。"},
+{s:"protective-put",n:"保护性 Put",e:"Protective Put",r:"R",c:"期权策略",h:"持股 + 买 Put = 给仓位买保险，保费和保额之间要权衡。"},
+{s:"selling-options",n:"卖期权",e:"Short Options",r:"R",c:"期权策略",h:"收权利金不等于稳赚：收益有限，履约义务和尾部风险敞开。"},
+{s:"bull-call",n:"牛市看涨价差",e:"Bull Call Spread",r:"R",c:"期权策略",h:"买低行权 Call + 卖高行权 Call：比裸买便宜，收益封顶。"},
+{s:"bear-put",n:"熊市看跌价差",e:"Bear Put Spread",r:"R",c:"期权策略",h:"温和看跌的有限风险打法，成本比裸买 Put 低。"},
+{s:"bull-put",n:"牛市看跌信用价差",e:"Bull Put Spread",r:"R",c:"期权策略",h:"卖 Put 价差收权利金，表达的是温和看涨或者不跌。"},
+{s:"bear-call",n:"熊市看涨信用价差",e:"Bear Call Spread",r:"R",c:"期权策略",h:"卖 Call 价差表达偏空或不涨；价格突破上方行权价就开始疼。"},
+{s:"collar",n:"领口策略",e:"Collar",r:"R",c:"期权策略",h:"持股 + 买 Put + 卖 Call：给仓位同时装上地板和天花板。"},
+{s:"married-put",n:"已婚 Put",e:"Married Put",r:"R",c:"期权策略",h:"买股票的同时买入 Put，建仓那一刻就自带保险。"},
+{s:"option-greeks-discrepancy",n:"为什么各家 Greeks 不一样",e:"Greeks Discrepancy",r:"R",c:"希腊字母",h:"同一合约不同平台数字不同：模型输入的利率、股息、IV 曲面不一样。"},
+{s:"probability-itm",n:"到期实值概率",e:"Probability of ITM",r:"R",c:"希腊字母",h:"常用 Delta 近似估算一张合约到期时处于实值的概率。"},
+{s:"deep-itm",n:"深度实值期权",e:"Deep ITM",r:"R",c:"希腊字母",h:"内在价值厚、时间价值薄，像带杠杆的股票替代；但报价可能很宽。"},
+{s:"option-last-vs-mark",n:"Last 与 Mark",e:"Last vs Mark",r:"R",c:"基础概念",h:"Last 是最近成交价，Mark 是模型或中间价；账户盈亏失真多半因为这个。"},
+{s:"earnings-options",n:"财报期权",e:"Earnings Options",r:"R",c:"期权策略",h:"财报前 IV 抬升、财报后坍塌；事件仓位先算预期波动再下单。"},
+{s:"weekly-monthly",n:"周权与月权怎么选",e:"Weeklys vs Monthlys",r:"R",c:"基础概念",h:"比的是到期密度、流动性和 Gamma 风险，按交易目标选期限。"},
+{s:"mini",n:"Mini 期权",e:"Mini Options",r:"R",c:"基础概念",h:"非标准合约的乘数和交割物可能不同，交易前务必核对调整说明。"},
+{s:"otc-vs-listed",n:"场内与场外期权",e:"Listed vs OTC",r:"R",c:"基础概念",h:"场内是标准化合约、集中清算；场外是双边定制，对手方风险自担。"},
+{s:"long-straddle",n:"买入跨式",e:"Long Straddle",r:"SR",c:"期权策略",h:"同行权价同时买 Call + Put 押大波动；波动不够大就被时间和 IV 双杀。"},
+{s:"short-straddle",n:"卖出跨式",e:"Short Straddle",r:"SR",c:"期权策略",h:"卖波动率收权利金：最大收益就是权利金，风险敞开。"},
+{s:"long-strangle",n:"买入宽跨式",e:"Long Strangle",r:"SR",c:"期权策略",h:"不同行权价的 Call + Put，比跨式便宜，但需要更大的波动才回本。"},
+{s:"short-strangle",n:"卖出宽跨式",e:"Short Strangle",r:"SR",c:"期权策略",h:"区间更宽、权利金更薄，容错大一些，尾部风险仍在。"},
+{s:"iron-condor",n:"铁鹰",e:"Iron Condor",r:"SR",c:"期权策略",h:"两侧信用价差拼成的区间收租机；最怕价格突破和波动率上升。"},
+{s:"iron-butterfly",n:"铁蝶",e:"Iron Butterfly",r:"SR",c:"期权策略",h:"和铁鹰同族，但围绕同一个中心行权价，对钉在中心的要求更高。"},
+{s:"butterfly",n:"蝶式价差",e:"Butterfly Spread",r:"SR",c:"期权策略",h:"三个行权价押注到期停在中间价，成本低、收益区窄。"},
+{s:"calendar",n:"日历价差",e:"Calendar Spread",r:"SR",c:"期权策略",h:"同行权价、不同到期日：交易的是时间差和 IV 的期限结构。"},
+{s:"diagonal",n:"对角价差",e:"Diagonal Spread",r:"SR",c:"期权策略",h:"到期日和行权价都不同；穷人版备兑的骨架就是它。"},
+{s:"vertical",n:"垂直价差",e:"Vertical Spread",r:"SR",c:"期权策略",h:"同到期、不同行权价：借方价差和信用价差都属于它，是策略的地基。"},
+{s:"put-call-parity",n:"看涨看跌平价",e:"Put-Call Parity",r:"SR",c:"定价模型",h:"Call、Put、现货和现金之间有一条等式锁着，合成股票和套利边界都从它来。"},
+{s:"synthetic-stock",n:"合成股票",e:"Synthetic Stock",r:"SR",c:"期权策略",h:"买 Call + 卖同行权价 Put 复制正股敞口，省资金但保证金和指派风险还在。"},
+{s:"options-rolling",n:"期权滚仓",e:"Rolling",r:"SR",c:"期权策略",h:"平旧开新调整到期日或行权价；滚仓不是把亏损变没，是开一笔新交易。"},
+{s:"risk-reversal",n:"风险逆转",e:"Risk Reversal",r:"SR",c:"期权策略",h:"买一侧期权、卖另一侧构造方向敞口，和领口、合成股票是亲戚。"},
+{s:"seagull",n:"海鸥策略",e:"Seagull",r:"SR",c:"期权策略",h:"一组价差再加一条卖出腿，用尾部风险换取低成本保护。"},
+{s:"jade",n:"翡翠蜥蜴",e:"Jade Lizard",r:"SR",c:"期权策略",h:"卖 Put + 卖看涨信用价差：号称没有上行风险，真风险在下跌那一侧。"},
+{s:"box",n:"盒式价差",e:"Box Spread",r:"SR",c:"期权策略",h:"看似无风险的固定收益结构，真实市场里有利率、提前指派和保证金的坑。"},
+{s:"poor-mans",n:"穷人版备兑 PMCC",e:"Poor Man's Covered Call",r:"SR",c:"期权策略",h:"用深实值 LEAPS 代替正股再卖短期 Call，资金效率高，细节全是风险。"},
+{s:"net-greeks",n:"组合希腊值",e:"Portfolio Greeks",r:"SR",c:"希腊字母",h:"不能只看单张合约：把全仓的 Delta、Gamma、Theta、Vega 合并成净暴露。"},
+{s:"portfolio-theta",n:"组合 Theta 预算",e:"Portfolio Theta",r:"SR",c:"希腊字母",h:"全仓每天的时间损耗值多少钱，要和风险预算放在一起看。"},
+{s:"gamma-scalping",n:"Gamma 剥头皮",e:"Gamma Scalping",r:"SR",c:"希腊字母",h:"持有 Gamma、靠反复对冲正股赚波动的钱，是做市商的日常。"},
+{s:"delta-hedging",n:"Delta 对冲",e:"Delta Hedging",r:"SR",c:"希腊字母",h:"用正股把方向暴露对冲掉，仓位从方向仓变成波动率仓。"},
+{s:"max-pain",n:"最大痛点",e:"Max Pain",r:"SR",c:"风险与对冲",h:"由未平仓量分布推出的、让期权买方整体最痛的到期价位。"},
+{s:"pin-risk",n:"钉住风险",e:"Pin Risk",r:"SR",c:"风险与对冲",h:"到期日股价钉在行权价附近，行不行权悬而未决，结算最难受。"},
+{s:"tail-risk",n:"尾部风险对冲",e:"Tail Hedging",r:"SR",c:"风险与对冲",h:"给灾难买保险：长期看很贵，出事的时候救命。"},
+{s:"dispersion",n:"分散度交易",e:"Dispersion Trading",r:"SR",c:"期权策略",h:"交易指数波动率与成分股波动率之间的差，机构级策略。"},
+{s:"volatility-smile",n:"波动率微笑",e:"Volatility Smile",r:"SR",c:"定价模型",h:"同到期、不同行权价的 IV 连成的曲线，形状里藏着市场对尾部的定价。"},
+{s:"volatility-skew",n:"波动率偏斜",e:"Volatility Skew",r:"SR",c:"定价模型",h:"股市里的微笑是歪的：虚值 Put 的 IV 系统性高于虚值 Call。"},
+{s:"conversion",n:"转换与反转套利",e:"Conversion & Reversal",r:"SR",c:"定价模型",h:"股票加期权锁出近似无风险结构的经典套利，利润薄如纸。"},
+{s:"covered-strangle",n:"备兑宽跨",e:"Covered Strangle",r:"SR",c:"期权策略",h:"持股同时卖 Call 又卖 Put：收两份权利金，担两份义务。"},
+{s:"ratio-spread",n:"比例价差",e:"Ratio Spread",r:"SR",c:"期权策略",h:"买卖腿数量不等，多卖出去的那条腿把尾部风险放了进来。"},
+{s:"double-calendar",n:"双日历价差",e:"Double Calendar",r:"SR",c:"期权策略",h:"在两个行权价上各建一组日历价差，交易区间加波动率。"},
+{s:"broken-wing",n:"断翼蝶式",e:"Broken Wing Butterfly",r:"SR",c:"期权策略",h:"拉宽一侧翼展的不对称蝶式，更便宜，但风险落在被拉宽的那一侧。"},
+{s:"earnings-iron-condor",n:"财报铁鹰检查表",e:"Earnings Iron Condor",r:"SR",c:"期权策略",h:"财报前卖波动率，先过预期波动、IV 坍塌、翼宽和最大亏损四关。"},
+{s:"fomc",n:"FOMC 会议期权",e:"FOMC Options",r:"SR",c:"期权策略",h:"利率决议日的事件仓位，和财报仓位是同一种打法。"},
+{s:"gap",n:"跳空风险",e:"Gap Risk",r:"SR",c:"风险与对冲",h:"隔夜跳空直接越过止损和行权价，是期权仓位最怕的开盘方式。"},
+{s:"black-scholes",n:"Black-Scholes 模型",e:"Black-Scholes",r:"SSR",c:"定价模型",h:"期权定价的祖师爷公式：股价、行权价、时间、利率、波动率五个输入。"},
+{s:"charm",n:"Charm",e:"Charm",r:"SSR",c:"希腊字母",h:"Delta 随时间流逝的变化率：什么都不动，你的 Delta 也在漂移。"},
+{s:"speed",n:"Speed",e:"Speed",r:"SSR",c:"希腊字母",h:"Gamma 变化的速度；短期高 Gamma 仓位的非线性加速器。"},
+{s:"zomma",n:"Zomma",e:"Zomma",r:"SSR",c:"希腊字母",h:"IV 的变化如何改变 Gamma 风险，三阶希腊里的冷门选手。"},
+{s:"ultima",n:"Ultima",e:"Ultima",r:"SSR",c:"希腊字母",h:"Vomma 对 IV 的敏感度，希腊字母套娃的深处。"},
+{s:"color",n:"Color",e:"Color",r:"SSR",c:"希腊字母",h:"Gamma 随时间的变化：持仓不动，Gamma 也会自己变。"},
+{s:"dealer-gamma",n:"做市商 Gamma 敞口",e:"Dealer Gamma Exposure",r:"SSR",c:"希腊字母",h:"做市商的对冲方向会放大或压平短期行情，正负 Gamma 是两种世界。"},
+{s:"heston",n:"Heston 模型",e:"Heston Model",r:"SSR",c:"定价模型",h:"让波动率自己也随机波动，用来解释偏斜的经典随机波动率模型。"},
+{s:"sabr",n:"SABR 模型",e:"SABR Model",r:"SSR",c:"定价模型",h:"四个参数拟合波动率微笑，利率期权市场的当家模型。"},
+{s:"svi",n:"SVI 模型",e:"SVI Model",r:"SSR",c:"定价模型",h:"五个参数拟合一条微笑曲线，波动率曲面建模的工业标准之一。"},
+{s:"volatility-surface",n:"波动率曲面",e:"Volatility Surface",r:"SSR",c:"定价模型",h:"行权价乘到期日的 IV 全景图，是期权定价的地图。"},
+{s:"dupire",n:"Dupire 局部波动率",e:"Dupire Local Vol",r:"SSR",c:"定价模型",h:"从市场期权价格反推出局部波动率函数，曲面定价方法的源头。"},
+{s:"risk-neutral-pricing",n:"风险中性定价",e:"Risk-Neutral Pricing",r:"SSR",c:"定价模型",h:"定价不用真实概率，用风险中性概率折现，是衍生品定价的世界观。"},
+{s:"monte-carlo",n:"蒙特卡洛定价",e:"Monte Carlo",r:"SSR",c:"定价模型",h:"靠大量随机模拟给复杂期权估价，路径依赖合约的主力工具。"},
+{s:"binomial",n:"二叉树定价",e:"Binomial Tree",r:"SSR",c:"定价模型",h:"把股价拆成一步步涨跌再倒推期权价格，理解提前行权的最佳模型。"},
+{s:"0dte-options",n:"0DTE 末日合约",e:"0DTE",r:"SSR",c:"风险与对冲",h:"当天到期的期权：Gamma 爆炸、归零最快，也是这两年最火的流量入口。"},
+{s:"volatility-carry",n:"波动率溢价收割",e:"Volatility Carry",r:"SSR",c:"期权策略",h:"系统性卖出波动率，赚 IV 高于实际波动的那部分风险溢价。"},
+{s:"section-1256",n:"1256 条款合约",e:"Section 1256",r:"SSR",c:"风险与对冲",h:"指数期权的税务待遇有 60/40 规则，是美股期权税制的一条分界线。"},
+{s:"dividend-arbitrage",n:"股息套利",e:"Dividend Arbitrage",r:"SSR",c:"风险与对冲",h:"围绕除息日和提前行权做文章，拼的是规则细节。"},
+{s:"hard-to-borrow",n:"难借券",e:"Hard to Borrow",r:"SSR",c:"风险与对冲",h:"借不到券时 Put 会系统性变贵，看涨看跌平价也会被撑歪。"},
+{s:"lookback",n:"回望期权",e:"Lookback Option",r:"UR",c:"奇异期权",h:"按期间最高价或最低价结算的后悔药期权，当然贵。"},
+{s:"cliquet",n:"棘轮期权",e:"Cliquet Option",r:"UR",c:"奇异期权",h:"分期锁定收益、像棘轮一样只进不退的结构化奇异期权。"},
+{s:"barrier",n:"障碍期权",e:"Barrier Option",r:"UR",c:"奇异期权",h:"价格碰到障碍线就敲入或敲出，便宜是因为随时可能作废。"},
+{s:"quanto",n:"Quanto 期权",e:"Quanto Option",r:"UR",c:"奇异期权",h:"跨币种标的、用固定汇率结算，把汇率风险摘出去的期权。"},
+{s:"binary",n:"二元期权",e:"Binary Option",r:"UR",c:"奇异期权",h:"到期非赢即输、全有全无，支付结构最极端的期权。"},
+{s:"compound",n:"复合期权",e:"Compound Option",r:"UR",c:"奇异期权",h:"期权的期权：给将来买期权的权利再套上一层。"},
+{s:"chooser",n:"选择期权",e:"Chooser Option",r:"UR",c:"奇异期权",h:"晚些时候再决定它到底是 Call 还是 Put，为这份犹豫付费。"},
+{s:"shout",n:"呐喊期权",e:"Shout Option",r:"UR",c:"奇异期权",h:"持有人可以在中途喊一次、锁定当前价值的奇异期权。"}
+];
+</script>
+<script>
+const BASE = "https://xiaoyinsi.com/wiki/options/";
+const RAR_ORDER = ["N","R","SR","SSR","UR"];
+const RAR_NAME = {N:"N · 基础", R:"R · 进阶", SR:"SR · 策略", SSR:"SSR · 稀有", UR:"UR · 传说"};
+const WEIGHTS = {N:50, R:30, SR:13, SSR:5, UR:2};
+const BANDS = {N:[100,900], R:[1000,2900], SR:[3000,5900], SSR:[6000,8900], UR:[9000,9999]};
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31 + s.charCodeAt(i))|0;}return Math.abs(h);}
+function powerOf(card){const b=BANDS[card.r]; return b[0] + (hashStr(card.s) % (b[1]-b[0]));}
+function levelOf(cnt){ if(cnt<=0) return 0; let lv=1; while(Math.pow(2,lv) <= cnt) lv++; return lv; }
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+const KEY="optgacha_v1";
+let S;
+try{ S = JSON.parse(localStorage.getItem(KEY)) || null; }catch(e){ S=null; }
+if(!S || typeof S!=="object") S={day:todayStr(), packs:10, col:{}, wins:0, battles:0, draws:0};
+if(S.day !== todayStr()){ S.day=todayStr(); S.packs=10; }
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+save();
+
+const byRar = {}; RAR_ORDER.forEach(r=>byRar[r]=[]);
+CARDS.forEach(c=>byRar[c.r].push(c));
+const bySlug = {}; CARDS.forEach(c=>bySlug[c.s]=c);
+
+function cardHTML(card, cnt, clickable){
+  const lv = cnt>0 ? levelOf(cnt) : 0;
+  return '<div class="card '+card.r+'" '+(clickable?'data-slug="'+card.s+'"':'')+'>'
+    + '<span class="rar '+card.r+'">'+card.r+'</span>'
+    + (cnt>0 ? '<span class="cnt">×'+cnt+(lv>1?' · Lv.'+lv:'')+'</span>' : '')
+    + '<div class="nm">'+card.n+'</div><div class="en">'+card.e+'</div>'
+    + '<div class="hook">'+card.h+'</div>'
+    + '<div class="pw">战斗力 '+powerOf(card).toLocaleString()+'</div></div>';
+}
+function lockedHTML(card){
+  return '<div class="card locked '+card.r+'"><span class="rar '+card.r+'">'+card.r+'</span>'
+    + '<div class="nm">？？？</div><div class="en">未收集</div>'
+    + '<div class="hook">这张卡还没抽到，继续开包试试。</div>'
+    + '<div class="pw">'+card.c+'</div></div>';
+}
+
+/* 导航 */
+document.querySelectorAll("nav button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    document.getElementById("v-"+b.dataset.v).classList.add("active");
+    if(b.dataset.v==="dex") renderDex();
+    if(b.dataset.v==="battle") renderBattleSel();
+    if(b.dataset.v==="trophy") renderTrophy();
+  });
+});
+
+/* 抽卡：种子取自点开这一刻的时间戳（向原版致敬） */
+function pickCard(){
+  const seed = String(Date.now()) + "-" + S.draws + "-" + Math.floor(Math.random()*1e6);
+  const h1 = hashStr(seed), h2 = hashStr(seed + "#idx");
+  const roll = (h1 % 10000) / 100;
+  let acc=0, rar="N";
+  for(const r of RAR_ORDER){ acc += WEIGHTS[r]; if(roll < acc){ rar=r; break; } }
+  const pool = byRar[rar];
+  return pool[h2 % pool.length];
+}
+function renderPacks(){
+  document.getElementById("packsLeft").textContent = S.packs;
+  document.getElementById("packBtn").classList.toggle("disabled", S.packs<=0);
+}
+document.getElementById("packBtn").addEventListener("click", ()=>{
+  if(S.packs<=0) return;
+  S.packs--;
+  const row = document.getElementById("drawRow");
+  row.innerHTML = "";
+  for(let i=0;i<3;i++){
+    const c = pickCard();
+    S.col[c.s] = (S.col[c.s]||0) + 1;
+    S.draws++;
+    const wrap = document.createElement("div");
+    wrap.innerHTML = cardHTML(c, S.col[c.s], true);
+    const el = wrap.firstChild;
+    el.style.animationDelay = (i*0.18)+"s";
+    el.addEventListener("click", ()=>openModal(c.s));
+    row.appendChild(el);
+  }
+  save(); renderPacks();
+});
+renderPacks();
+
+/* 图鉴 */
+function renderDex(){
+  const got = Object.keys(S.col).length;
+  document.getElementById("dexProg").textContent = "已收集 "+got+" / "+CARDS.length+" 种 · 累计抽卡 "+S.draws+" 张";
+  const wrap = document.getElementById("dexWrap");
+  wrap.innerHTML = "";
+  RAR_ORDER.forEach(r=>{
+    const list = byRar[r];
+    const have = list.filter(c=>S.col[c.s]).length;
+    const head = document.createElement("div");
+    head.className = "dexhead";
+    head.innerHTML = "<h3>"+RAR_NAME[r]+"</h3><div class='prog'>"+have+" / "+list.length+"</div>";
+    wrap.appendChild(head);
+    const grid = document.createElement("div");
+    grid.className = "dexgrid";
+    list.forEach(c=>{
+      const cnt = S.col[c.s]||0;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = cnt>0 ? cardHTML(c, cnt, true) : lockedHTML(c);
+      const el = tmp.firstChild;
+      if(cnt>0) el.addEventListener("click", ()=>openModal(c.s));
+      grid.appendChild(el);
+    });
+    wrap.appendChild(grid);
+  });
+}
+
+/* 详情弹窗 */
+function openModal(slug){
+  const c = bySlug[slug]; if(!c) return;
+  const cnt = S.col[slug]||0;
+  const rarEl = document.getElementById("mRar");
+  rarEl.className = "rar "+c.r; rarEl.textContent = RAR_NAME[c.r];
+  document.getElementById("mName").textContent = c.n;
+  document.getElementById("mEn").textContent = c.e;
+  document.getElementById("mDesc").textContent = c.h;
+  document.getElementById("mMeta").innerHTML =
+    "分类："+c.c+" · 战斗力 "+powerOf(c).toLocaleString()
+    + (cnt>0 ? "<br>已收集 ×"+cnt+"（Lv."+levelOf(cnt)+"，再抽 "+(Math.pow(2,levelOf(cnt))-cnt)+" 张升下一级）" : "")
+    + '<br><a href="'+BASE+c.s+'" target="_blank" rel="noopener" style="color:var(--blue)">去小隐寺读这篇词条 →</a>'
+    + '<br><span style="font-size:11.5px">卡池内容来源：小隐寺投资百科《期权进阶》（xiaoyinsi.com）</span>';
+  document.getElementById("modal").classList.add("open");
+}
+document.getElementById("mClose").addEventListener("click", ()=>document.getElementById("modal").classList.remove("open"));
+document.getElementById("modal").addEventListener("click", e=>{ if(e.target.id==="modal") e.currentTarget.classList.remove("open"); });
+
+/* 对战 */
+function renderBattleSel(){
+  const sel = document.getElementById("myCardSel");
+  const mine = Object.keys(S.col).map(s=>bySlug[s]).filter(Boolean)
+    .sort((a,b)=>powerOf(b)-powerOf(a));
+  sel.innerHTML = mine.length
+    ? mine.map(c=>'<option value="'+c.s+'">'+c.n+'（'+c.r+' · '+powerOf(c).toLocaleString()+'）</option>').join("")
+    : '<option value="">还没有卡，先去抽几包</option>';
+  document.getElementById("battleBtn").disabled = mine.length===0;
+}
+document.getElementById("battleBtn").addEventListener("click", ()=>{
+  const slug = document.getElementById("myCardSel").value;
+  if(!slug) return;
+  const me = bySlug[slug];
+  const foe = CARDS[Math.floor(Math.random()*CARDS.length)];
+  const myP = Math.round(powerOf(me) * (0.9 + Math.random()*0.2));
+  const foP = Math.round(powerOf(foe) * (0.9 + Math.random()*0.2));
+  S.battles++;
+  const win = myP >= foP;
+  if(win) S.wins++;
+  save();
+  document.getElementById("vsRow").innerHTML =
+    cardHTML(me, S.col[slug]||1, false) + '<div class="vs">VS</div>' + cardHTML(foe, 0, false);
+  document.getElementById("battleResult").innerHTML =
+    (win ? "🏆 你赢了！" : "惜败。") + " 本场战力 " + myP.toLocaleString() + " : " + foP.toLocaleString()
+    + " · 总战绩 " + S.wins + " 胜 / " + S.battles + " 场";
+});
+
+/* 奖杯 */
+function renderTrophy(){
+  const got = Object.keys(S.col).length;
+  const rarDone = r => byRar[r].every(c=>S.col[c.s]);
+  const hasRar = r => byRar[r].some(c=>S.col[c.s]);
+  const maxCnt = Math.max(0, ...Object.values(S.col));
+  const items = [
+    ["初入期权村", "抽到第一张卡", S.draws>=1],
+    ["十连之手", "累计抽卡 30 张", S.draws>=30],
+    ["图鉴过半", "收集满 58 种不同的卡", got>=58],
+    ["全图鉴", "收集全部 "+CARDS.length+" 种卡", got>=CARDS.length],
+    ["N 卡全集", "集齐全部 N 稀有度卡", rarDone("N")],
+    ["策略大师", "集齐全部 SR 卡", rarDone("SR")],
+    ["传说猎人", "抽到任意一张 UR 卡", hasRar("UR")],
+    ["稀有收藏家", "抽到任意一张 SSR 卡", hasRar("SSR")],
+    ["复习狂人", "任意一张卡收集到 16 张（Lv.5）", maxCnt>=16],
+    ["对战首胜", "赢下第一场对战", S.wins>=1],
+    ["十胜俱乐部", "累计赢下 10 场对战", S.wins>=10]
+  ];
+  document.getElementById("trophyWrap").innerHTML =
+    items.map(t=>'<div class="trophy">'+(t[2]?"🏆 ":"🔒 ")+t[0]+"<span>"+t[1]+(t[2]?" · 已达成":"")+"</span></div>").join("")
+    + '<p class="note">战绩：对战 '+S.battles+' 场 · 胜 '+S.wins+' 场 · 累计抽卡 '+S.draws+' 张</p>';
+}
+</script>
+</body>
+</html>
